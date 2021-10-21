@@ -122,18 +122,23 @@ def rel_density_profile_from_recipe(recipe, profile_name):
     return rel_density_layer_profile
 
 
-def plot_rel_density_profiles(rel_depth_density_hist, rel_depth_bins, regions, rel_layer_depth_range, density_layer_profile, fig_title=None, unit=None, save_path=None):
+def plot_rel_density_profiles(rel_depth_density_hist, rel_depth_bins, regions, rel_layer_depth_range, density_layer_profile, err_bars=None, fig_title=None, unit=None, num_rows=1, save_path=None):
     """
     Plot rel. synapse density profiles (voxel-based)
     """
+    if err_bars is not None:
+        assert err_bars.shape == rel_depth_density_hist.shape, 'ERROR: Error bar shape mismatch!'
     max_range = 1.05 * np.maximum(np.max(rel_depth_density_hist), np.max(density_layer_profile))
     num_rel_depth_bins = len(rel_depth_bins) - 1
     rel_depth_bin_centers = np.array([np.mean(rel_depth_bins[i : i + 2]) for i in range(num_rel_depth_bins)])
-    plt.figure(figsize=(10, 6))
+    num_cols = np.ceil(len(regions) / num_rows).astype(int)
+    plt.figure(figsize=(2 * num_cols, 3 * num_rows))
     plt.gcf().patch.set_facecolor('w')
     for ridx, reg in enumerate(regions):
-        plt.subplot(2, np.ceil(len(regions) / 2).astype(int), ridx + 1)
+        plt.subplot(num_rows, num_cols, ridx + 1)
         plt.barh(100.0 * rel_depth_bin_centers, rel_depth_density_hist[:, ridx], np.diff(100.0 * rel_depth_bin_centers[:2]))
+        if err_bars is not None:
+            plt.errorbar(rel_depth_density_hist[:, ridx], 100.0 * rel_depth_bin_centers, xerr=err_bars[:, ridx], fmt='|', markersize=1.0, markeredgewidth=0.5, color='k', elinewidth=0.5)
         plt.gca().spines['top'].set_visible(False)
         plt.gca().spines['right'].set_visible(False)
         plt.xlim([0, max_range])
@@ -152,17 +157,18 @@ def plot_rel_density_profiles(rel_depth_density_hist, rel_depth_bins, regions, r
             plt.text(max(plt.xlim()), 100.0 * np.mean(rel_layer_depth_range[ridx][lidx, :]), f'  L{lidx + 1}', color=lcolors[lidx, :], ha='left', va='center')
             plt.plot(plt.xlim(), np.ones(2) * 100.0 * rel_layer_depth_range[ridx][lidx, 0], '-', color=lcolors[lidx, :], linewidth=1, alpha=0.1, zorder=0)
             plt.plot(plt.xlim(), np.ones(2) * 100.0 * rel_layer_depth_range[ridx][lidx, 1], '-', color=lcolors[lidx, :], linewidth=1, alpha=0.1, zorder=0)
-        if np.mod(ridx, np.ceil(len(regions) / 2).astype(int)) == 0:
+        if np.mod(ridx, np.ceil(len(regions) / num_rows).astype(int)) == 0:
             plt.ylabel('Rel. depth [%]')
         else:
             plt.gca().set_yticklabels([])
 
-        plt.step(np.repeat(density_layer_profile, 2), 100.0 * rel_layer_depth_range[ridx].flatten(), 'm', where='post', linewidth=1.5, alpha=0.5, clip_on=False, label='Recipe')
-    plt.legend(loc='lower right')
+        plt.step(np.repeat(density_layer_profile[ridx], 2), 100.0 * rel_layer_depth_range[ridx].flatten(), 'm', where='post', linewidth=1.5, alpha=0.5, clip_on=False, label='Recipe')
+        if ridx == 0:
+            plt.legend(loc='lower right', fontsize=8)
     if fig_title:
         plt.suptitle(fig_title, fontweight='bold')
     plt.tight_layout()
     if save_path is not None:
-        plt.savefig(os.path.join(save_path, f'{proj_name}_profiles.png'), dpi=300)
+        plt.savefig(os.path.join(save_path, f'{fig_title.replace(" ", "_").replace(".", "")}.png'), dpi=300)
     plt.show()
 
