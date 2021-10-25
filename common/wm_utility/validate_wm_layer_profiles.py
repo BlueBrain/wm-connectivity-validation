@@ -44,16 +44,30 @@ def estimate_layer_boundaries(vox_rel_depth, atlas_regions, atlas_ids):
         atlas_ids = [atlas_ids]
     num_regions = len(atlas_ids)
 
-    rel_layer_depth_range = []
+    # Rel. depth range per layer
+    rel_layer_depth_range_raw = []
     for ridx in range(num_regions):
         num_layers = atlas_ids[ridx].shape[0]
         depth_range = np.zeros((num_layers, 2))
         for lidx in range(num_layers):
             dval_tmp = vox_rel_depth.flatten()[np.in1d(atlas_regions.raw.flatten(), atlas_ids[ridx][lidx, :].flatten())]
             depth_range[lidx, :] = [np.nanmin(dval_tmp), np.nanmax(dval_tmp)]
+        rel_layer_depth_range_raw.append(depth_range)
+
+    rel_layer_depth_range = []
+    rel_layer_thickness = []
+    for depth_range in rel_layer_depth_range_raw:
+        # Estimate mid-points between layers
+        mid_points = np.mean(np.reshape(depth_range.flatten()[1:-1], (depth_range.shape[0] - 1, -1)), 1)
+        mid_points = np.concatenate(([depth_range[0, 0]], mid_points, [depth_range[-1, -1]]))
+        rel_layer_thickness.append(np.diff(mid_points))
+
+        # Re-define rel. depth range per layer (so that continuous range between consecutive layers)
+        depth_range = np.concatenate((mid_points[[0]], mid_points[np.repeat(np.arange(1, len(mid_points) - 1), 2)], mid_points[[-1]]))
+        depth_range = np.reshape(depth_range, (num_layers, -1))
         rel_layer_depth_range.append(depth_range)
 
-    return rel_layer_depth_range
+    return rel_layer_depth_range, rel_layer_thickness
 
 
 def estimate_depth_profiles(proj_file, atlas_regions, atlas_ids, vox_rel_depth, num_rel_depth_bins=50):
@@ -128,7 +142,9 @@ def plot_rel_density_profiles(rel_depth_density_hist, rel_depth_bins, regions, r
     """
     if err_bars is not None:
         assert err_bars.shape == rel_depth_density_hist.shape, 'ERROR: Error bar shape mismatch!'
-    max_range = 1.05 * np.maximum(np.max(rel_depth_density_hist), np.max(density_layer_profile))
+        max_range = 1.05 * np.maximum(np.max(rel_depth_density_hist + err_bars), np.max(density_layer_profile))
+    else:
+        max_range = 1.05 * np.maximum(np.max(rel_depth_density_hist), np.max(density_layer_profile))
     num_rel_depth_bins = len(rel_depth_bins) - 1
     rel_depth_bin_centers = np.array([np.mean(rel_depth_bins[i : i + 2]) for i in range(num_rel_depth_bins)])
     num_cols = np.ceil(len(regions) / num_rows).astype(int)
