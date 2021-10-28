@@ -1,7 +1,7 @@
 import numpy
-from common.wm_utility.flatmap_utility import flat_coordinates_of_regions as two_d_view_of
-from common.wm_utility.flatmap_utility import flat_region_image
-from common.wm_utility.flatmap_utility.flatmap_utility import _flatmap_extent
+from wm_utility.flatmap_utility import flat_coordinates_of_regions as two_d_view_of
+from wm_utility.flatmap_utility import flat_region_image
+from wm_utility.flatmap_utility.flatmap_utility import _flatmap_extent
 
 
 def _loader(recipe):
